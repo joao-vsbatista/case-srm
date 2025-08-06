@@ -1,0 +1,591 @@
+openapi: 3.0.3
+info:
+  title: Sistema de Conversão de Moedas do Reino SRM
+  description: |
+    API para conversão de moedas entre Ouro Real (OR) e Tibar (TB) no Mercado de Pulgas dos Mil Saberes.
+    Funcionalidades:
+      - Conversão entre Ouro Real (OR) e Tibar (TB)
+      - Multiplicadores por categoria de produto
+      - Histórico completo de transações
+      - Taxas de câmbio atualizáveis
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Servidor de Desenvolvimento
+  - url: https://api.srm.kingdom
+    description: Servidor de Produção
+
+tags:
+  - name: Conversão
+    description: Endpoints de conversão entre moedas
+  - name: Produtos
+    description: Operações relacionadas aos produtos e categorias
+  - name: Reinos
+    description: Operações relacionadas aos reinos
+  - name: Taxas de Câmbio
+    description: Operações para consultar/atualizar taxas de câmbio
+  - name: Transações
+    description: Operações para listar e criar transações
+
+paths:
+  /currencies:
+    get:
+      tags:
+        - Conversão
+      summary: Listar todas as moedas
+      operationId: getAllCurrencies
+      responses:
+        '200':
+          description: Lista de moedas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CurrencySimple'
+
+  /currencies/{fromCurrency}/convert-to/{toCurrency}:
+    post:
+      tags:
+        - Conversão
+      summary: Converter moeda (query params)
+      description: |
+        Converte um valor de `fromCurrency` para `toCurrency` usando query params.
+        Parâmetros: `amount` (required) e opcionais `productId`, `quantity`.
+        Aplica multiplicadores por categoria se `productId` for informado.
+      operationId: convertCurrencyQuery
+      parameters:
+        - name: fromCurrency
+          in: path
+          required: true
+          schema:
+            type: string
+            example: OR
+        - name: toCurrency
+          in: path
+          required: true
+          schema:
+            type: string
+            example: TB
+        - name: amount
+          in: query
+          required: true
+          description: Valor a ser convertido
+          schema:
+            type: number
+            format: decimal
+            minimum: 0.0001
+            example: 100.00
+        - name: productId
+          in: query
+          required: false
+          description: ID do produto (1-6)
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            maximum: 6
+            example: 1
+        - name: quantity
+          in: query
+          required: false
+          description: Quantidade do produto
+          schema:
+            type: number
+            format: int64
+            example: 1.0
+      responses:
+        '200':
+          description: Conversão realizada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyConversionResponse'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Moeda ou produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products:
+    get:
+      tags:
+        - Produtos
+      summary: Listar todos os produtos
+      operationId: getAllProducts
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductSimple'
+    post:
+      tags:
+        - Produtos
+      summary: Criar um novo produto
+      operationId: createProduct
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Produto criado
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /products/{id}:
+    get:
+      tags:
+        - Produtos
+      summary: Obter produto por id
+      operationId: getProductById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 1
+      responses:
+        '200':
+          description: Produto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductSimple'
+        '404':
+          description: Produto não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /kingdoms:
+    get:
+      tags:
+        - Reinos
+      summary: Listar reinos
+      operationId: getAllKingdoms
+      responses:
+        '200':
+          description: Lista de reinos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KingdomSimple'
+
+  /exchange-rates/{fromCurrency}/to/{toCurrency}:
+    get:
+      tags:
+        - Taxas de Câmbio
+      summary: Consultar taxa de câmbio atual
+      operationId: getCurrentExchangeRate
+      parameters:
+        - name: fromCurrency
+          in: path
+          required: true
+          schema:
+            type: string
+            example: OR
+        - name: toCurrency
+          in: path
+          required: true
+          schema:
+            type: string
+            example: TB
+      responses:
+        '200':
+          description: Taxa de câmbio atual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRate'
+        '404':
+          description: Taxa não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Taxas de Câmbio
+      summary: Atualizar ou criar taxa de câmbio
+      operationId: updateExchangeRate
+      parameters:
+        - name: fromCurrency
+          in: path
+          required: true
+          schema:
+            type: string
+            example: OR
+        - name: toCurrency
+          in: path
+          required: true
+          schema:
+            type: string
+            example: TB
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExchangeRateCreate'
+            example:
+              rate: 2.5
+              effectiveDate: "2025-01-30"
+      responses:
+        '200':
+          description: Taxa atualizada/criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExchangeRate'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /transactions:
+    get:
+      tags:
+        - Transações
+      summary: Listar transações (filtros simples)
+      operationId: listTransactions
+      responses:
+        '200':
+          description: Página de transações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+    post:
+      tags:
+        - Transações
+      summary: Criar uma transação
+      operationId: createTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionCreate'
+      responses:
+        '201':
+          description: Transação criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CurrencySimple:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        code:
+          type: string
+          example: "OR"
+        name:
+          type: string
+          example: "Ouro Real"
+        symbol:
+          type: string
+          example: "⚜"
+        kingdomName:
+          type: string
+          example: "SRM"
+        isBaseCurrency:
+          type: boolean
+          example: true
+
+    CurrencyConversionRequest:
+      type: object
+      required:
+        - fromCurrencyCode
+        - toCurrencyCode
+        - amount
+      properties:
+        fromCurrencyCode:
+          type: string
+          example: "OR"
+        toCurrencyCode:
+          type: string
+          example: "TB"
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.0001
+          example: 100.00
+        productId:
+          type: integer
+          format: int64
+          minimum: 1
+          maximum: 6
+          example: 1
+        quantity:
+          type: number
+          format: decimal
+          example: 1.0
+
+    CurrencyConversionResponse:
+      type: object
+      properties:
+        fromCurrencyCode:
+          type: string
+          example: "OR"
+        fromCurrencyName:
+          type: string
+          example: "Ouro Real"
+        fromCurrencySymbol:
+          type: string
+          example: "⚜"
+        toCurrencyCode:
+          type: string
+          example: "TB"
+        toCurrencyName:
+          type: string
+          example: "Tibar"
+        toCurrencySymbol:
+          type: string
+          example: "⛏"
+        originalAmount:
+          type: number
+          format: decimal
+          example: 100.0000
+        convertedAmount:
+          type: number
+          format: decimal
+          example: 250.0000
+        exchangeRate:
+          type: number
+          format: decimal
+          example: 2.5000
+        categoryMultiplier:
+          type: number
+          format: decimal
+          example: 1.0000
+        productName:
+          type: string
+          nullable: true
+          example: "Pele de Urso das Montanhas"
+        categoryName:
+          type: string
+          nullable: true
+          enum: [Peles, Madeira, Hidromel]
+          example: "Peles"
+        conversionDate:
+          type: string
+          format: date-time
+          example: "2025-01-30T01:32:15.123456"
+        notes:
+          type: string
+          example: "Taxa de câmbio: 2.5000"
+
+    ProductSimple:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: "Pele de Urso das Montanhas"
+        description:
+          type: string
+          example: "Pele resistente de urso das montanhas geladas"
+        categoryName:
+          type: string
+          enum: [Peles, Madeira, Hidromel]
+          example: "Peles"
+        categoryMultiplier:
+          type: number
+          format: decimal
+          example: 1.0000
+        basePrice:
+          type: number
+          format: decimal
+          example: 50.0000
+        baseCurrencyCode:
+          type: string
+          example: "OR"
+        baseCurrencySymbol:
+          type: string
+          example: "⚜"
+        kingdomName:
+          type: string
+          example: "Montanhas dos Anões"
+
+    ProductCreate:
+      type: object
+      required:
+        - name
+        - categoryName
+        - basePrice
+        - baseCurrencyCode
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        categoryName:
+          type: string
+        basePrice:
+          type: number
+          format: decimal
+        baseCurrencyCode:
+          type: string
+        kingdomName:
+          type: string
+
+    KingdomSimple:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+
+    ExchangeRate:
+      type: object
+      properties:
+        id:
+          type: integer
+        fromCurrencyCode:
+          type: string
+          example: "OR"
+        fromCurrencyName:
+          type: string
+          example: "Ouro Real"
+        toCurrencyCode:
+          type: string
+          example: "TB"
+        toCurrencyName:
+          type: string
+          example: "Tibar"
+        rate:
+          type: number
+          format: decimal
+          example: 2.5000
+        effectiveDate:
+          type: string
+          format: date
+          example: "2025-01-30"
+
+    ExchangeRateCreate:
+      type: object
+      required:
+        - rate
+      properties:
+        rate:
+          type: number
+          format: decimal
+          minimum: 0.0001
+          example: 2.5
+        effectiveDate:
+          type: string
+          format: date
+          example: "2025-01-30"
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        originalAmount:
+          type: number
+          format: decimal
+        convertedAmount:
+          type: number
+          format: decimal
+        exchangeRate:
+          type: number
+          format: decimal
+        transactionDate:
+          type: string
+          format: date-time
+
+    TransactionCreate:
+      type: object
+      required:
+        - transactionType
+        - originalAmount
+        - convertedAmount
+        - exchangeRate
+      properties:
+        transactionType:
+          type: string
+          enum: [EXCHANGE, PURCHASE, SALE]
+        originalAmount:
+          type: number
+          format: decimal
+        convertedAmount:
+          type: number
+          format: decimal
+        exchangeRate:
+          type: number
+          format: decimal
+        productId:
+          type: integer
+          format: int64
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-30T01:32:15.123456"
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: "Resource Not Found"
+        message:
+          type: string
+          example: "Currency not found: INVALID"
+        validationErrors:
+          type: object
+          additionalProperties:
+            type: string
+          nullable: true

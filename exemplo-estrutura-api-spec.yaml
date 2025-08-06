@@ -1,0 +1,116 @@
+openapi: 3.0.3
+info:
+  title: Sistema de Conversão de Moedas do Reino SRM
+  description: |
+    API para conversão de moedas entre Ouro Real e Tibar
+    
+    ## Categorias de Produtos:
+    - **Peles** (Multiplicador: 1.0) - Sem alteração na conversão
+    - **Madeira** (Multiplicador: 0.85) - Desconto de 15%
+    - **Hidromel** (Multiplicador: 1.2) - Acréscimo de 20%
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/srm-currency
+    description: Servidor de Desenvolvimento
+
+paths:
+  /api/currencies/{fromCurrency}/convert-to/{toCurrency}:
+    post:
+      tags:
+        - Currencies
+      summary: Converter moeda
+      description: |
+        Converte um valor de uma moeda para outra, aplicando multiplicadores 
+        de categoria se um produto for especificado.
+      parameters:
+        - name: fromCurrency
+          in: path
+          required: true
+          description: Código da moeda de origem
+          schema:
+            type: string
+            example: OR
+        - name: amount
+          in: query
+          required: true
+          description: Valor a ser convertido
+          schema:
+            type: number
+            format: decimal
+            example: 100.00
+        - name: productId
+          in: query
+          required: false
+          description: |
+            ID do produto (opcional). Produtos disponíveis:
+            - ID 1-2: Categoria Peles (multiplicador 1.0)
+            - ID 3-4: Categoria Madeira (multiplicador 0.85)
+            - ID 5-6: Categoria Hidromel (multiplicador 1.2)
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Conversão realizada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrencyConversionResponse'
+              examples:
+                conversao_simples:
+                  summary: Conversão simples sem produto
+                  value:
+                    fromCurrencyCode: "OR"
+                    toCurrencyCode: "TB"
+                    originalAmount: 100.0000
+                    convertedAmount: 250.0000
+                    exchangeRate: 2.5000
+                    categoryMultiplier: 1.0000
+                conversao_madeira:
+                  summary: Conversão com produto da categoria Madeira
+                  value:
+                    fromCurrencyCode: "OR"
+                    toCurrencyCode: "TB"
+                    originalAmount: 75.0000
+                    convertedAmount: 159.3750
+                    exchangeRate: 2.5000
+                    categoryMultiplier: 0.8500
+                    productName: "Madeira de Carvalho Élfico"
+                    categoryName: "Madeira"
+
+components:
+  schemas:
+    CurrencyConversionResponse:
+      type: object
+      properties:
+        fromCurrencyCode:
+          type: string
+          example: "OR"
+        toCurrencyCode:
+          type: string
+          example: "TB"
+        originalAmount:
+          type: number
+          format: decimal
+          example: 100.0000
+        convertedAmount:
+          type: number
+          format: decimal
+          example: 250.0000
+        exchangeRate:
+          type: number
+          format: decimal
+          example: 2.5000
+        categoryMultiplier:
+          type: number
+          format: decimal
+          example: 1.0000
+        productName:
+          type: string
+          nullable: true
+          example: "Pele de Urso das Montanhas"
+        categoryName:
+          type: string
+          nullable: true
+          example: "Peles"
